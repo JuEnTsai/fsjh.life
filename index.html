@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>福山匿名投稿</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; }
+        .modal-show { display: flex; }
+        .nav-glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="pb-20">
+
+    <script>
+        // 已填入你提供的 GAS 部署網址
+        const API_URL = "https://script.google.com/macros/s/AKfycbxNIWjUyOdZM3vvHR9uMdfADYwPnsRJvntQTtoZlBmWj_E_w2L6v8hH_sV4urAYPe-ylw/exec"; 
+        const GOOGLE_CLIENT_ID = "511878323230-0uvd7colr8df751ujpjv9e7trmvp8amm.apps.googleusercontent.com"; 
+        
+        let allPosts = []; 
+    </script>
+
+    <!-- 導覽列 -->
+    <nav class="sticky top-0 nav-glass border-b px-4 py-4 z-40">
+        <div class="max-w-2xl mx-auto flex justify-between items-center">
+            <h1 class="font-black text-2xl text-blue-600 tracking-tighter cursor-pointer" onclick="location.reload()">福山匿名投稿</h1>
+            <div class="flex items-center space-x-3">
+                <span id="status" class="text-[9px] font-bold text-slate-400 uppercase">檢查連線</span>
+                <div id="userHeader" class="flex items-center space-x-2 hidden">
+                    <img id="headerImg" src="" class="w-7 h-7 rounded-full border border-slate-200">
+                    <button onclick="logout()" class="text-slate-400 hover:text-red-500">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-2xl mx-auto p-4 space-y-6">
+        <!-- 搜尋列 -->
+        <div class="relative group">
+            <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="searchInput" oninput="handleSearch()" placeholder="搜尋 IG、內容或身分..." 
+                   class="w-full bg-white border border-slate-100 py-3 pl-11 pr-4 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all text-sm font-medium">
+        </div>
+
+        <!-- 投稿按鈕 -->
+        <button onclick="handlePostButtonClick()" class="w-full bg-blue-600 text-white font-black py-4 rounded-3xl shadow-xl active:scale-95 transition-transform text-lg flex items-center justify-center space-x-2">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i>
+            <span>發布新投稿</span>
+        </button>
+
+        <!-- 貼文列表 -->
+        <div id="feed" class="space-y-4">
+            <div class="text-center py-20 text-slate-300 font-bold flex flex-col items-center">
+                <i data-lucide="refresh-cw" class="w-8 h-8 mb-4 animate-spin"></i>
+                正在從試算表同步資料...
+            </div>
+        </div>
+    </main>
+
+    <!-- 彈窗 -->
+    <div id="actionModal" class="modal-overlay">
+        <div class="bg-white p-8 rounded-[40px] w-full max-w-md mx-4 shadow-2xl relative">
+            <button onclick="closeModal()" class="absolute top-6 right-6 text-slate-300">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+
+            <!-- 登入部分 -->
+            <div id="loginSection" class="text-center py-4 hidden">
+                <div class="bg-blue-50 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6 text-blue-600">
+                    <i data-lucide="shield-check" class="w-8 h-8"></i>
+                </div>
+                <h2 class="font-black text-xl mb-2 text-slate-800">福山身分驗證</h2>
+                <p class="text-sm text-slate-500 mb-8 font-medium">請使用校內帳號登入投稿</p>
+                <div id="g_id_onload" data-client_id="511878323230-0uvd7colr8df751ujpjv9e7trmvp8amm.apps.googleusercontent.com" data-callback="handleCredentialResponse" data-auto_prompt="false"></div>
+                <div class="g_id_signin flex justify-center" data-type="standard"></div>
+            </div>
+
+            <!-- 投稿部分 -->
+            <div id="postSection" class="hidden">
+                <h2 class="font-black text-xl mb-6 text-slate-800">撰寫投稿</h2>
+                <textarea id="content" class="w-full h-40 bg-slate-50 rounded-2xl p-4 mb-4 outline-none text-sm border-none focus:ring-2 focus:ring-blue-500" placeholder="今天發生了什麼趣事？"></textarea>
+                <input type="text" id="igAccount" placeholder="你的 IG (選填)" class="w-full bg-slate-50 rounded-xl px-4 py-2 mb-4 text-xs outline-none">
+                <div class="flex justify-between items-center mb-8">
+                    <select id="cat" class="bg-slate-100 rounded-xl px-4 py-2 text-xs font-bold">
+                        <option>心情</option><option>尋物</option><option>告白</option>
+                    </select>
+                    <label class="flex items-center text-xs font-bold text-slate-500 cursor-pointer">
+                        <input type="checkbox" id="anon" class="mr-2"> 匿名發布
+                    </label>
+                </div>
+                <button onclick="sendPost()" id="sendBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm shadow-lg">
+                    發布到雲端
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = JSON.parse(localStorage.getItem('fushan_user'));
+
+        function handleCredentialResponse(response) {
+            try {
+                const base64Url = response.credential.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+                
+                const email = payload.email;
+                let userType = "校外人士";
+                let studentId = ""; 
+
+                if (email.endsWith("@fsjh.kh.edu.tw")) {
+                    if (email.includes("fsjhs")) {
+                        userType = "學生";
+                        const match = email.match(/fsjhs(\d{7})/);
+                        if (match) studentId = match[1];
+                    } else if (email.includes("fsjht")) {
+                        userType = "老師";
+                    } else {
+                        userType = "校內人士";
+                    }
+                }
+
+                currentUser = { name: payload.name, email: email, picture: payload.picture, type: userType, studentId: studentId };
+                localStorage.setItem('fushan_user', JSON.stringify(currentUser));
+                showPostInterface();
+                updateHeader();
+            } catch (e) { console.error(e); }
+        }
+
+        function handlePostButtonClick() {
+            document.getElementById('actionModal').classList.add('modal-show');
+            if (currentUser) showPostInterface();
+            else showLoginInterface();
+        }
+
+        function showLoginInterface() {
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('postSection').classList.add('hidden');
+        }
+
+        function showPostInterface() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('postSection').classList.remove('hidden');
+        }
+
+        function updateHeader() {
+            if (currentUser) {
+                const header = document.getElementById('userHeader');
+                const img = document.getElementById('headerImg');
+                header.classList.remove('hidden');
+                img.src = currentUser.picture;
+            }
+        }
+
+        function logout() {
+            if(confirm("確定要登出嗎？")) {
+                localStorage.removeItem('fushan_user');
+                location.reload();
+            }
+        }
+
+        function handleSearch() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allPosts.filter(p => 
+                (p.content && p.content.toLowerCase().includes(term)) || 
+                (p.ig && p.ig.toLowerCase().includes(term)) || 
+                (p.sid && p.sid.toLowerCase().includes(term))
+            );
+            render(filtered);
+        }
+
+        async function loadFeed() {
+            document.getElementById('status').innerText = "連線中...";
+            try {
+                const res = await fetch(API_URL);
+                allPosts = await res.json();
+                render(allPosts);
+                document.getElementById('status').innerText = "雲端同步中";
+            } catch(e) { 
+                document.getElementById('status').innerText = "連線失敗";
+            }
+        }
+
+        async function sendPost() {
+            const text = document.getElementById('content').value.trim();
+            const ig = document.getElementById('igAccount').value.trim() || "未提供";
+            if(!text) return alert("請輸入內容！");
+            
+            const btn = document.getElementById('sendBtn');
+            btn.disabled = true; btn.innerText = "正在發送到試算表...";
+            
+            const data = {
+                id: Date.now().toString(),
+                author: currentUser.name,
+                sid: currentUser.email,
+                ig: ig,
+                cat: document.getElementById('cat').value,
+                content: text,
+                isAnon: document.getElementById('anon').checked,
+                date: new Date().toLocaleString('zh-TW', { hour12: false })
+            };
+
+            try {
+                // 使用 POST 傳送到 GAS
+                await fetch(API_URL, { 
+                    method: 'POST', 
+                    mode: 'no-cors', 
+                    body: JSON.stringify(data) 
+                });
+                
+                setTimeout(() => {
+                    closeModal();
+                    document.getElementById('content').value = "";
+                    document.getElementById('igAccount').value = "";
+                    loadFeed();
+                    btn.disabled = false; btn.innerText = "發布到雲端";
+                }, 1200);
+            } catch (e) {
+                alert("發送失敗，請檢查 GAS 權限");
+                btn.disabled = false;
+            }
+        }
+
+        function render(posts) {
+            const feed = document.getElementById('feed');
+            if (!posts || posts.length === 0) {
+                feed.innerHTML = '<div class="text-center py-20 text-slate-300 font-bold italic">目前試算表是空的，來發第一篇文吧！</div>';
+                return;
+            }
+            feed.innerHTML = [...posts].reverse().map(p => `
+                <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm transition hover:shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 ${p.isAnon ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white'} rounded-2xl flex items-center justify-center font-black text-sm">
+                                ${p.isAnon ? '匿' : (p.author ? p.author[0] : '？')}
+                            </div>
+                            <div>
+                                <h3 class="font-black text-slate-800 text-sm">${p.isAnon ? '匿名同學' : p.author}</h3>
+                                <p class="text-[10px] text-slate-400 font-bold">${p.date}${p.ig !== "未提供" ? ' · @'+p.ig : ''}</p>
+                            </div>
+                        </div>
+                        <span class="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full uppercase tracking-tighter">${p.cat}</span>
+                    </div>
+                    <p class="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">${p.content}</p>
+                </div>
+            `).join('');
+        }
+
+        function closeModal() { document.getElementById('actionModal').classList.remove('modal-show'); }
+
+        window.onload = () => {
+            updateHeader();
+            loadFeed();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
