@@ -1,263 +1,311 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>福山匿名投稿</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; }
-        .modal-show { display: flex; }
-        .nav-glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
-    </style>
-</head>
-<body class="pb-20">
+import React, { useState, useEffect, useRef } from 'react';
+import { PlusCircle, Search, LogOut, X, ShieldCheck, RefreshCw, User, Instagram, Settings } from 'lucide-react';
 
-    <script>
-        // 你的 GAS 部署網址
-        const API_URL = "https://script.google.com/macros/s/AKfycbxNIWjUyOdZM3vvHR9uMdfADYwPnsRJvntQTtoZlBmWj_E_w2L6v8hH_sV4urAYPe-ylw/exec"; 
-        const GOOGLE_CLIENT_ID = "511878323230-0uvd7colr8df751ujpjv9e7trmvp8amm.apps.googleusercontent.com"; 
-        
-        let allPosts = []; 
-    </script>
+// 配置資訊
+const API_URL = "https://script.google.com/macros/s/AKfycbxNIWjUyOdZM3vvHR9uMdfADYwPnsRJvntQTtoZlBmWj_E_w2L6v8hH_sV4urAYPe-ylw/exec";
+const GOOGLE_CLIENT_ID = "511878323230-0uvd7colr8df751ujpjv9e7trmvp8amm.apps.googleusercontent.com";
 
-    <nav class="sticky top-0 nav-glass border-b px-4 py-4 z-40">
-        <div class="max-w-2xl mx-auto flex justify-between items-center">
-            <h1 class="font-black text-2xl text-blue-600 tracking-tighter cursor-pointer" onclick="location.reload()">福山匿名投稿</h1>
-            <div class="flex items-center space-x-3">
-                <span id="status" class="text-[9px] font-bold text-slate-400 uppercase">檢查連線</span>
-                <div id="userHeader" class="flex items-center space-x-2 hidden">
-                    <img id="headerImg" src="" class="w-7 h-7 rounded-full border border-slate-200">
-                    <button onclick="logout()" class="text-slate-400 hover:text-red-500">
-                        <i data-lucide="log-out" class="w-4 h-4"></i>
+const App = () => {
+  const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('fushan_user')) || null);
+  const [allPosts, setAllPosts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [status, setStatus] = useState('檢查連線');
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState('login'); // 'login', 'post', 'settings'
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // 表單狀態
+  const [postContent, setPostContent] = useState('');
+  const [category, setCategory] = useState('心情');
+  const [isAnon, setIsAnon] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+
+  useEffect(() => {
+    loadFeed();
+    // 初始化 Google 登入
+    const script = document.createElement('script');
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
+    window.handleCredentialResponse = (response) => {
+      const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      const user = { 
+        name: payload.name, 
+        email: payload.email, 
+        picture: payload.picture,
+        ig: localStorage.getItem(`fushan_ig_${payload.email}`) || '未設定'
+      };
+      setCurrentUser(user);
+      localStorage.setItem('fushan_user', JSON.stringify(user));
+      setShowModal(false);
+    };
+  }, []);
+
+  const loadFeed = async () => {
+    setStatus('連線中...');
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      setAllPosts(data);
+      setIsLoading(false);
+      setStatus('雲端同步中');
+    } catch (e) {
+      setStatus('連線失敗');
+      setIsLoading(false);
+    }
+  };
+
+  const handlePost = async () => {
+    if (!postContent.trim()) return alert("請輸入內容！");
+    setIsSending(true);
+    
+    const userIg = localStorage.getItem(`fushan_ig_${currentUser.email}`) || "未設定";
+
+    const data = {
+      action: "add",
+      id: Date.now().toString(),
+      author: currentUser.name,
+      sid: currentUser.email,
+      ig: userIg,
+      cat: category,
+      content: postContent,
+      isAnon: isAnon,
+      date: new Date().toLocaleString('zh-TW', { hour12: false })
+    };
+
+    try {
+      await fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
+      setPostContent('');
+      setShowModal(false);
+      setIsSending(false);
+      loadFeed();
+    } catch (e) {
+      alert("發送失敗");
+      setIsSending(false);
+    }
+  };
+
+  const handleDelete = async (postId) => {
+    if (!confirm("確定要刪除這則投稿嗎？")) return;
+    setStatus('正在刪除...');
+    try {
+      await fetch(API_URL, { 
+        method: 'POST', 
+        mode: 'no-cors', 
+        body: JSON.stringify({ action: "delete", id: postId, userEmail: currentUser.email }) 
+      });
+      setTimeout(loadFeed, 1000);
+    } catch (e) { alert("刪除失敗"); }
+  };
+
+  const saveIG = (newIg) => {
+    const updatedUser = { ...currentUser, ig: newIg };
+    setCurrentUser(updatedUser);
+    localStorage.setItem('fushan_user', JSON.stringify(updatedUser));
+    localStorage.setItem(`fushan_ig_${currentUser.email}`, newIg);
+    alert("IG 設定成功！");
+    setShowModal(false);
+  };
+
+  const logout = () => {
+    if (confirm("確定要登出嗎？")) {
+      localStorage.removeItem('fushan_user');
+      setCurrentUser(null);
+      setShowUserMenu(false);
+    }
+  };
+
+  const filteredPosts = allPosts.filter(p => 
+    p.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.ig?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.author?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-20 font-sans">
+      {/* 導覽列 */}
+      <nav className="sticky top-0 bg-white/80 backdrop-blur-md border-b px-4 py-4 z-40">
+        <div className="max-w-2xl mx-auto flex justify-between items-center">
+          <h1 className="font-black text-2xl text-blue-600 tracking-tighter cursor-pointer" onClick={() => window.location.reload()}>福山匿名投稿</h1>
+          <div className="flex items-center space-x-3">
+            <span className="text-[9px] font-bold text-slate-400 uppercase">{status}</span>
+            {currentUser && (
+              <div className="relative">
+                <button onClick={() => setShowUserMenu(!showUserMenu)} className="w-9 h-9 rounded-full border-2 border-blue-100 p-0.5 hover:border-blue-400 transition-all">
+                  <img src={currentUser.picture} className="w-full h-full rounded-full" alt="profile" />
+                </button>
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                    <div className="px-4 py-2 border-b border-slate-50 mb-1">
+                      <p className="text-xs font-bold text-slate-800 truncate">{currentUser.name}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{currentUser.ig || '未設定 IG'}</p>
+                    </div>
+                    <button onClick={() => { setModalType('settings'); setShowModal(true); setShowUserMenu(false); }} className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                      <Settings size={16} /> <span>個人設定</span>
                     </button>
-                </div>
-            </div>
+                    <button onClick={logout} className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-500 hover:bg-red-50">
+                      <LogOut size={16} /> <span>登出帳號</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-    </nav>
+      </nav>
 
-    <main class="max-w-2xl mx-auto p-4 space-y-6">
-        <div class="relative group">
-            <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="text" id="searchInput" oninput="handleSearch()" placeholder="搜尋 IG、內容或身分..." 
-                   class="w-full bg-white border border-slate-100 py-3 pl-11 pr-4 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all text-sm font-medium">
+      <main className="max-w-2xl mx-auto p-4 space-y-6">
+        {/* 搜尋 */}
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder="搜尋內容、IG或作者..." 
+            className="w-full bg-white border-none py-4 pl-12 pr-4 rounded-3xl shadow-sm outline-none focus:ring-2 focus:ring-blue-100 text-sm font-medium"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
 
-        <button onclick="handlePostButtonClick()" class="w-full bg-blue-600 text-white font-black py-4 rounded-3xl shadow-xl active:scale-95 transition-transform text-lg flex items-center justify-center space-x-2">
-            <i data-lucide="plus-circle" class="w-5 h-5"></i>
-            <span>發布新投稿</span>
+        {/* 投稿按鈕 */}
+        <button 
+          onClick={() => {
+            if (!currentUser) { setModalType('login'); setShowModal(true); }
+            else { setModalType('post'); setShowModal(true); }
+          }} 
+          className="w-full bg-blue-600 text-white font-black py-4 rounded-[32px] shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center justify-center space-x-2"
+        >
+          <PlusCircle size={20} />
+          <span>發布新投稿</span>
         </button>
 
-        <div id="feed" class="space-y-4">
-            <div class="text-center py-20 text-slate-300 font-bold flex flex-col items-center">
-                <i data-lucide="refresh-cw" class="w-8 h-8 mb-4 animate-spin"></i>
-                正在同步資料...
+        {/* 列表 */}
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="text-center py-20 text-slate-300 flex flex-col items-center">
+              <RefreshCw className="animate-spin mb-4" /> 同步中...
             </div>
+          ) : filteredPosts.length === 0 ? (
+            <div className="text-center py-20 text-slate-300 font-bold italic">目前沒有投稿</div>
+          ) : (
+            filteredPosts.slice().reverse().map(p => (
+              <div key={p.id} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm ${p.isAnon ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white'}`}>
+                      {p.isAnon ? '匿' : p.author?.[0]}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-sm">{p.isAnon ? '匿名同學' : p.author}</h3>
+                      <p className="text-[10px] text-slate-400 font-bold">
+                        {p.date} {p.ig && p.ig !== '未設定' && p.ig !== '未提供' && `· @${p.ig}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end space-y-2">
+                    <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">{p.cat}</span>
+                    {currentUser && p.sid === currentUser.email && (
+                      <button onClick={() => handleDelete(p.id)} className="text-[10px] text-red-400 font-bold hover:underline">刪除</button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{p.content}</p>
+              </div>
+            ))
+          )}
         </div>
-    </main>
+      </main>
 
-    <div id="actionModal" class="modal-overlay">
-        <div class="bg-white p-8 rounded-[40px] w-full max-w-md mx-4 shadow-2xl relative">
-            <button onclick="closeModal()" class="absolute top-6 right-6 text-slate-300">
-                <i data-lucide="x" class="w-6 h-6"></i>
+      {/* 彈窗系統 */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-[40px] p-8 relative animate-in zoom-in-95 duration-200">
+            <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-600">
+              <X size={24} />
             </button>
 
-            <div id="loginSection" class="text-center py-4 hidden">
-                <h2 class="font-black text-xl mb-2 text-slate-800">福山身分驗證</h2>
-                <div id="g_id_onload" data-client_id="511878323230-0uvd7colr8df751ujpjv9e7trmvp8amm.apps.googleusercontent.com" data-callback="handleCredentialResponse" data-auto_prompt="false"></div>
-                <div class="g_id_signin flex justify-center" data-type="standard"></div>
-            </div>
-
-            <div id="postSection" class="hidden">
-                <h2 class="font-black text-xl mb-6 text-slate-800">撰寫投稿</h2>
-                <textarea id="content" class="w-full h-40 bg-slate-50 rounded-2xl p-4 mb-4 outline-none text-sm border-none focus:ring-2 focus:ring-blue-500" placeholder="分享福山生活..."></textarea>
-                <input type="text" id="igAccount" placeholder="你的 IG (選填)" class="w-full bg-slate-50 rounded-xl px-4 py-2 mb-4 text-xs outline-none">
-                <div class="flex justify-between items-center mb-8">
-                    <select id="cat" class="bg-slate-100 rounded-xl px-4 py-2 text-xs font-bold">
-                        <option>心情</option><option>尋物</option><option>告白</option>
-                    </select>
-                    <label class="flex items-center text-xs font-bold text-slate-500">
-                        <input type="checkbox" id="anon" class="mr-2"> 匿名發布
-                    </label>
+            {modalType === 'login' && (
+              <div className="text-center py-6">
+                <div className="bg-blue-50 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6 text-blue-600">
+                  <ShieldCheck size={32} />
                 </div>
-                <button onclick="sendPost()" id="sendBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm shadow-lg">
-                    發布到雲端
+                <h2 className="font-black text-xl mb-2 text-slate-800">福山身分驗證</h2>
+                <p className="text-sm text-slate-400 mb-8 font-medium">請使用校內 Google 帳號登入</p>
+                <div className="flex justify-center">
+                  <div id="g_id_onload" data-client_id={GOOGLE_CLIENT_ID} data-callback="handleCredentialResponse"></div>
+                  <div className="g_id_signin" data-type="standard"></div>
+                </div>
+              </div>
+            )}
+
+            {modalType === 'post' && (
+              <div>
+                <h2 className="font-black text-xl mb-6 text-slate-800">撰寫投稿</h2>
+                <textarea 
+                  className="w-full h-40 bg-slate-50 rounded-2xl p-4 mb-4 outline-none text-sm focus:ring-2 focus:ring-blue-500 border-none"
+                  placeholder="今天發生了什麼趣事？"
+                  value={postContent}
+                  onChange={(e) => setPostContent(e.target.value)}
+                ></textarea>
+                <div className="flex justify-between items-center mb-8">
+                  <select 
+                    className="bg-slate-100 rounded-xl px-4 py-2 text-xs font-bold outline-none border-none"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                  >
+                    <option>心情</option><option>尋物</option><option>告白</option>
+                  </select>
+                  <label className="flex items-center text-xs font-bold text-slate-500 cursor-pointer">
+                    <input type="checkbox" className="mr-2" checked={isAnon} onChange={(e) => setIsAnon(e.target.checked)} /> 匿名發布
+                  </label>
+                </div>
+                <button 
+                  onClick={handlePost} 
+                  disabled={isSending}
+                  className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm shadow-lg disabled:bg-slate-300"
+                >
+                  {isSending ? '傳送中...' : '發布到雲端'}
                 </button>
-            </div>
-        </div>
-    </div>
+              </div>
+            )}
 
-    <script>
-        let currentUser = JSON.parse(localStorage.getItem('fushan_user'));
-
-        function handleCredentialResponse(response) {
-            try {
-                const base64Url = response.credential.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
-                currentUser = { name: payload.name, email: payload.email, picture: payload.picture };
-                localStorage.setItem('fushan_user', JSON.stringify(currentUser));
-                showPostInterface();
-                updateHeader();
-                loadFeed(); // 登入後刷新以顯示刪除按鈕
-            } catch (e) { console.error(e); }
-        }
-
-        function handlePostButtonClick() {
-            document.getElementById('actionModal').classList.add('modal-show');
-            if (currentUser) showPostInterface();
-            else showLoginInterface();
-        }
-
-        function showLoginInterface() {
-            document.getElementById('loginSection').classList.remove('hidden');
-            document.getElementById('postSection').classList.add('hidden');
-        }
-
-        function showPostInterface() {
-            document.getElementById('loginSection').classList.add('hidden');
-            document.getElementById('postSection').classList.remove('hidden');
-        }
-
-        function updateHeader() {
-            if (currentUser) {
-                const header = document.getElementById('userHeader');
-                const img = document.getElementById('headerImg');
-                header.classList.remove('hidden');
-                img.src = currentUser.picture;
-            }
-        }
-
-        function logout() {
-            if(confirm("確定登出嗎？")) {
-                localStorage.removeItem('fushan_user');
-                location.reload();
-            }
-        }
-
-        function handleSearch() {
-            const term = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = allPosts.filter(p => 
-                (p.content && p.content.toLowerCase().includes(term)) || 
-                (p.ig && p.ig.toLowerCase().includes(term)) || 
-                (p.sid && p.sid.toLowerCase().includes(term))
-            );
-            render(filtered);
-        }
-
-        async function loadFeed() {
-            document.getElementById('status').innerText = "連線中...";
-            try {
-                const res = await fetch(API_URL);
-                allPosts = await res.json();
-                render(allPosts);
-                document.getElementById('status').innerText = "雲端同步中";
-            } catch(e) { 
-                document.getElementById('status').innerText = "連線失敗";
-            }
-        }
-
-        async function sendPost() {
-            const text = document.getElementById('content').value.trim();
-            const ig = document.getElementById('igAccount').value.trim() || "未提供";
-            if(!text) return alert("內容不能為空！");
-            
-            const btn = document.getElementById('sendBtn');
-            btn.disabled = true; btn.innerText = "傳送中...";
-            
-            const data = {
-                action: "add",
-                id: Date.now().toString(),
-                author: currentUser.name,
-                sid: currentUser.email,
-                ig: ig,
-                cat: document.getElementById('cat').value,
-                content: text,
-                isAnon: document.getElementById('anon').checked,
-                date: new Date().toLocaleString('zh-TW', { hour12: false })
-            };
-
-            try {
-                await fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
-                setTimeout(() => {
-                    closeModal();
-                    document.getElementById('content').value = "";
-                    loadFeed();
-                    btn.disabled = false; btn.innerText = "發布到雲端";
-                }, 1200);
-            } catch (e) {
-                alert("發送失敗");
-                btn.disabled = false;
-            }
-        }
-
-        // ✨ 新增：刪除功能
-        async function requestDelete(postId) {
-            if (!confirm("確定要刪除這則投稿嗎？")) return;
-            
-            document.getElementById('status').innerText = "正在刪除...";
-            const data = {
-                action: "delete",
-                id: postId,
-                userEmail: currentUser.email
-            };
-
-            try {
-                await fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
-                setTimeout(() => {
-                    alert("刪除要求已送出！");
-                    loadFeed();
-                }, 1200);
-            } catch (e) {
-                alert("刪除失敗");
-            }
-        }
-
-        function render(posts) {
-            const feed = document.getElementById('feed');
-            if (!posts || posts.length === 0) {
-                feed.innerHTML = '<div class="text-center py-20 text-slate-300 font-bold">目前沒有資料</div>';
-                return;
-            }
-            feed.innerHTML = [...posts].reverse().map(p => {
-                // ✨ 判斷是否為本人發的文 (比對 Email)
-                const isMine = currentUser && p.sid === currentUser.email;
-
-                return `
-                <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm transition hover:shadow-md">
-                    <div class="flex justify-between items-center mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 ${p.isAnon ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white'} rounded-2xl flex items-center justify-center font-black text-sm">
-                                ${p.isAnon ? '匿' : (p.author ? p.author[0] : '？')}
-                            </div>
-                            <div>
-                                <h3 class="font-black text-slate-800 text-sm">${p.isAnon ? '匿名同學' : p.author}</h3>
-                                <p class="text-[10px] text-slate-400 font-bold">${p.date}${p.ig !== "未提供" ? ' · @'+p.ig : ''}</p>
-                            </div>
-                        </div>
-                        
-                        ${isMine ? `
-                            <button onclick="requestDelete('${p.id}')" class="text-[10px] font-black text-red-500 bg-red-50 px-3 py-1.5 rounded-full hover:bg-red-100 transition">刪除</button>
-                        ` : `
-                            <span class="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full uppercase tracking-tighter">${p.cat}</span>
-                        `}
+            {modalType === 'settings' && (
+              <div>
+                <h2 className="font-black text-xl mb-6 text-slate-800 flex items-center space-x-2">
+                  <Settings size={20} className="text-blue-600" />
+                  <span>個人設定</span>
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-black text-slate-400 uppercase mb-2 block px-1">Instagram 帳號</label>
+                    <div className="relative">
+                      <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                      <input 
+                        type="text" 
+                        id="setting_ig"
+                        defaultValue={currentUser.ig !== '未設定' ? currentUser.ig : ''}
+                        placeholder="例如: fsjh_life"
+                        className="w-full bg-slate-50 rounded-2xl py-4 pl-11 pr-4 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 border-none"
+                      />
                     </div>
-                    <p class="text-sm text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">${p.content}</p>
+                  </div>
+                  <button 
+                    onClick={() => saveIG(document.getElementById('setting_ig').value)}
+                    className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm shadow-lg mt-4"
+                  >
+                    儲存設定
+                  </button>
                 </div>
-            `}).join('');
-        }
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
-        function closeModal() { document.getElementById('actionModal').classList.remove('modal-show'); }
-
-        window.onload = () => {
-            updateHeader();
-            loadFeed();
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        };
-    </script>
-</body>
-</html>
+export default App;
