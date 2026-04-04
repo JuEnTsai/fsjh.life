@@ -12,24 +12,36 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
         
-        /* 核心頭像樣式 */
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            background-color: #f7fee7; /* 溫暖的淡綠色背景 */
+            /* 背景裝飾：更細緻的格紋感 */
+            background-image: 
+                radial-gradient(#d9f99d 0.8px, transparent 0.8px),
+                linear-gradient(to right, #f1f8e4 1px, transparent 1px),
+                linear-gradient(to bottom, #f1f8e4 1px, transparent 1px);
+            background-size: 24px 24px, 24px 24px, 24px 24px;
+        }
+        
         .avatar-ring {
             position: relative;
-            background: #e0eaff; 
-            border-radius: 14px; 
-            width: 42px;
-            height: 42px;
+            background: #ffffff; 
+            border-radius: 16px; 
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
             cursor: pointer;
+            border: 1.5px solid #ecf3e0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
         }
+
         .avatar-img-wrapper {
             position: relative;
-            border-radius: 11px; 
+            border-radius: 12px; 
             width: 36px;
             height: 36px;
             overflow: hidden;
@@ -37,43 +49,87 @@
             align-items: center;
             justify-content: center;
         }
-        .avatar-img-wrapper img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
+
+        .post-card { 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            border-radius: 28px; 
+            border: 1px solid rgba(255, 255, 255, 0.7); 
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px -12px rgba(101, 163, 13, 0.08);
         }
-        .post-card { transition: all 0.2s ease; }
-        .post-card:hover { transform: translateY(-2px); }
         
-        /* Google 按鈕自定義容器 */
-        .google-btn-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            margin-top: 1.5rem;
+        .post-card:hover { 
+            transform: translateY(-4px) scale(1.01);
+            border-color: #10b981; 
+            box-shadow: 0 20px 40px -15px rgba(16, 185, 129, 0.15);
         }
+
+        /* 呼吸燈效果 */
+        .status-pulse {
+            position: relative;
+        }
+        .status-pulse::after {
+            content: '';
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #10b981;
+            border-radius: 50%;
+            left: -12px;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 0 8px #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; transform: translateY(-50%) scale(0.8); }
+            50% { opacity: 1; transform: translateY(-50%) scale(1.2); }
+            100% { opacity: 0.3; transform: translateY(-50%) scale(0.8); }
+        }
+
+        .forum-logo-custom {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
-<body class="pb-20">
+<body class="pb-32">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect } = React;
 
-        // 圖示組件
         const Icon = ({ name, className = "w-4 h-4" }) => {
             const icons = {
-                search: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
-                plus: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>,
+                plus: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
                 logout: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>,
                 settings: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
                 user: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
                 x: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
                 refresh: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>,
                 instagram: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>,
-                google: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className={className}><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="m6.306 14.691 6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>
+                mainLogo: (
+                    <div className="forum-logo-custom">
+                        <svg viewBox="0 0 100 100" className="w-12 h-12 drop-shadow-md">
+                            <defs>
+                                <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="#10b981" />
+                                    <stop offset="100%" stopColor="#059669" />
+                                </linearGradient>
+                            </defs>
+                            <circle cx="50" cy="50" r="46" fill="url(#logoGrad)" />
+                            <path d="M22 38 C22 28 28 22 48 22 C68 22 78 28 78 38 C78 55 78 62 78 68 C78 74 72 78 62 78 L55 78 L45 88 L45 78 C32 78 22 74 22 65 Z" fill="white" fillOpacity="0.9" />
+                            <text x="50" y="58" fontFamily="system-ui, sans-serif" fontSize="15" fontWeight="900" fill="#065f46" textAnchor="middle" letterSpacing="-0.5">FSJH</text>
+                        </svg>
+                    </div>
+                )
             };
             return icons[name] || null;
         };
@@ -84,7 +140,6 @@
         const App = () => {
             const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('fushan_user')) || null);
             const [allPosts, setAllPosts] = useState([]);
-            const [searchTerm, setSearchTerm] = useState('');
             const [isLoading, setIsLoading] = useState(true);
             const [status, setStatus] = useState('已連線');
             const [showModal, setShowModal] = useState(false);
@@ -92,7 +147,6 @@
             const [showUserMenu, setShowUserMenu] = useState(false);
 
             const [postContent, setPostContent] = useState('');
-            const [category, setCategory] = useState('心情');
             const [isAnon, setIsAnon] = useState(false);
             const [isSending, setIsSending] = useState(false);
 
@@ -113,7 +167,6 @@
                 };
             }, []);
 
-            // 監聽 Modal 開放，確保 Google 按鈕能重新渲染
             useEffect(() => {
                 if (showModal && modalType === 'login') {
                     const interval = setInterval(() => {
@@ -130,7 +183,6 @@
                                     theme: "filled_black",
                                     text: "signin_with",
                                     size: "large",
-                                    logo_alignment: "left",
                                     width: 280
                                 });
                                 clearInterval(interval);
@@ -158,14 +210,13 @@
             const handlePost = async () => {
                 if (!postContent.trim()) return;
                 setIsSending(true);
-                const userIg = localStorage.getItem(`fushan_ig_${currentUser.email}`) || "未設定";
                 const data = {
                     action: "add",
                     id: Date.now().toString(),
                     author: currentUser.name,
                     sid: currentUser.email,
-                    ig: userIg,
-                    cat: category,
+                    ig: currentUser.ig || "未設定",
+                    cat: "通用",
                     content: postContent,
                     isAnon: isAnon,
                     date: new Date().toLocaleString('zh-TW', { hour12: false })
@@ -202,53 +253,41 @@
                 setShowModal(false);
             };
 
-            const handleAvatarClick = () => {
-                if (!currentUser) {
-                    setModalType('login');
-                    setShowModal(true);
-                } else {
-                    setShowUserMenu(!showUserMenu);
-                }
-            };
-
-            const filteredPosts = allPosts.filter(p => 
-                p.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.ig?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (p.author && !p.isAnon && p.author.toLowerCase().includes(searchTerm.toLowerCase()))
-            );
-
             return (
-                <div className="min-h-screen bg-slate-50 pb-24 font-sans antialiased text-slate-900">
-                    <nav className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-slate-100 px-6 py-4 z-40">
-                        <div className="max-w-2xl mx-auto flex justify-between items-center">
-                            <div className="flex flex-col">
-                                <h1 className="font-black text-2xl text-blue-600 tracking-tighter leading-tight cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>福山匿名投稿</h1>
-                                <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">{status}</span>
+                <div className="min-h-screen pb-24 antialiased text-slate-800">
+                    <nav className="sticky top-0 bg-white/70 backdrop-blur-xl border-b border-lime-200/50 px-6 py-4 z-40">
+                        <div className="max-w-xl mx-auto flex justify-between items-center">
+                            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
+                                <Icon name="mainLogo" />
+                                <div className="flex flex-col">
+                                    <h1 className="font-black text-xl text-slate-900 tracking-tighter leading-none">福山匿名投稿</h1>
+                                    <div className="flex items-center mt-2 ml-4">
+                                        <span className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] leading-none status-pulse">{status}</span>
+                                    </div>
+                                </div>
                             </div>
                             
                             <div className="relative">
-                                <button onClick={handleAvatarClick} className="avatar-ring focus:outline-none hover:scale-105 transition-transform active:scale-95">
-                                    <div className="avatar-img-wrapper" style={{ backgroundColor: currentUser ? '#7e22ce' : '#cbd5e1' }}>
+                                <button onClick={() => currentUser ? setShowUserMenu(!showUserMenu) : (setModalType('login'), setShowModal(true))} className="avatar-ring hover:border-emerald-300 hover:scale-105 transition-all active:scale-95 shadow-sm">
+                                    <div className="avatar-img-wrapper" style={{ backgroundColor: currentUser ? 'transparent' : '#f8fafc' }}>
                                         {currentUser ? (
-                                            <img src={currentUser.picture} alt="profile" />
+                                            <img src={currentUser.picture} alt="profile" className="w-full h-full object-cover" />
                                         ) : (
-                                            <Icon name="user" className="w-5 h-5 text-white opacity-80" />
+                                            <Icon name="user" className="w-5 h-5 text-slate-300" />
                                         )}
                                     </div>
                                 </button>
                                 {currentUser && showUserMenu && (
-                                    <div className="absolute right-0 mt-3 w-56 bg-white rounded-3xl shadow-2xl border border-slate-100 py-3 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <div className="px-5 py-3 border-b border-slate-50 mb-1">
-                                            <p className="text-sm font-black text-slate-800 truncate">{currentUser.name}</p>
-                                            <p className="text-[11px] font-bold text-blue-500 truncate mt-0.5">
-                                                {currentUser.ig && currentUser.ig !== '未設定' ? `@${currentUser.ig.replace('@','')}` : '尚未設定 IG'}
-                                            </p>
+                                    <div className="absolute right-0 mt-3 w-60 bg-white rounded-[32px] shadow-2xl shadow-emerald-900/15 border border-emerald-50 py-2 z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                                        <div className="px-6 py-5 border-b border-slate-50 mb-1 bg-emerald-50/30">
+                                            <p className="text-sm font-black text-slate-900 truncate">{currentUser.name}</p>
+                                            <p className="text-[11px] font-bold text-slate-400 truncate mt-0.5">{currentUser.email}</p>
                                         </div>
-                                        <button onClick={() => { setModalType('settings'); setShowModal(true); setShowUserMenu(false); }} className="w-full flex items-center space-x-3 px-5 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors font-bold">
-                                            <Icon name="settings" className="w-4 h-4 text-slate-400" /> <span>個人設定</span>
+                                        <button onClick={() => { setModalType('settings'); setShowModal(true); setShowUserMenu(false); }} className="w-full flex items-center space-x-3 px-6 py-3.5 text-sm text-slate-600 hover:bg-emerald-50 transition-colors font-bold">
+                                            <Icon name="settings" className="w-4 h-4 text-emerald-500" /> <span>個人帳號設定</span>
                                         </button>
-                                        <button onClick={() => { localStorage.removeItem('fushan_user'); setCurrentUser(null); setShowUserMenu(false); }} className="w-full flex items-center space-x-3 px-5 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors font-bold">
-                                            <Icon name="logout" className="w-4 h-4" /> <span>登出帳號</span>
+                                        <button onClick={() => { localStorage.removeItem('fushan_user'); setCurrentUser(null); setShowUserMenu(false); }} className="w-full flex items-center space-x-3 px-6 py-3.5 text-sm text-red-500 hover:bg-red-50 transition-colors font-bold border-t border-slate-50 mt-1">
+                                            <Icon name="logout" className="w-4 h-4" /> <span>登出系統</span>
                                         </button>
                                     </div>
                                 )}
@@ -256,177 +295,160 @@
                         </div>
                     </nav>
 
-                    <main className="max-w-2xl mx-auto p-6 space-y-8">
-                        {/* 搜尋列 */}
-                        <div className="relative group">
-                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                                <Icon name="search" className="w-5 h-5" />
+                    <main className="max-w-xl mx-auto p-6 space-y-8">
+                        {isLoading ? (
+                            <div className="text-center py-32">
+                                <div className="inline-block relative w-12 h-12">
+                                    <div className="absolute inset-0 border-4 border-emerald-100 rounded-full"></div>
+                                    <div className="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
+                                </div>
+                                <p className="text-xs font-black text-emerald-600/40 mt-6 tracking-widest">正在從雲端同步投稿內容...</p>
                             </div>
-                            <input 
-                                type="text" 
-                                placeholder="搜尋內容、IG 或投稿者..." 
-                                className="w-full bg-white border-2 border-transparent py-4 pl-14 pr-6 rounded-[24px] shadow-sm outline-none focus:border-blue-500/10 focus:ring-4 focus:ring-blue-500/5 text-sm font-bold transition-all placeholder:text-slate-300"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-
-                        {/* 投稿列表 */}
-                        <div className="space-y-6">
-                            {isLoading ? (
-                                <div className="text-center py-20 flex flex-col items-center">
-                                    <div className="animate-spin text-blue-500 mb-4"><Icon name="refresh" className="w-10 h-10" /></div>
-                                    <p className="text-sm font-black text-slate-300 uppercase tracking-widest">同步最新投稿...</p>
-                                </div>
-                            ) : filteredPosts.length === 0 ? (
-                                <div className="text-center py-24">
-                                    <p className="text-slate-300 font-black italic text-lg uppercase tracking-wider">目前沒有內容</p>
-                                </div>
-                            ) : (
-                                filteredPosts.slice().reverse().map(p => (
-                                    <div key={p.id} className="bg-white p-7 rounded-[40px] border border-slate-100 shadow-sm post-card relative overflow-hidden">
-                                        <div className="flex justify-between items-start mb-6">
-                                            <div className="flex items-center space-x-4">
-                                                <div className="avatar-ring" style={{ cursor: 'default' }}>
-                                                    <div className="avatar-img-wrapper" style={{ backgroundColor: p.isAnon ? '#f1f5f9' : '#7e22ce' }}>
-                                                        {p.isAnon ? (
-                                                            <span className="text-slate-400 text-[13px] font-black">匿</span>
-                                                        ) : (
-                                                            <span className="text-white text-sm font-black uppercase leading-none">{p.author ? p.author[0] : '？'}</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-black text-slate-800 text-base leading-tight">{p.isAnon ? '匿名同學' : p.author}</h3>
-                                                    <div className="flex items-center space-x-2 mt-1">
-                                                        <span className="text-[11px] font-bold text-slate-300">{p.date}</span>
-                                                        {p.ig && p.ig !== '未設定' && p.ig !== '未提供' && (
-                                                            <a 
-                                                                href={`https://instagram.com/${p.ig.replace('@','').trim()}`} 
-                                                                target="_blank" 
-                                                                rel="noopener noreferrer"
-                                                                className="flex items-center space-x-1 text-[11px] font-black text-blue-500 hover:text-blue-700 transition-colors bg-blue-50 px-2 py-0.5 rounded-lg"
-                                                            >
-                                                                <Icon name="instagram" className="w-3 h-3" />
-                                                                <span>@{p.ig.replace('@','').trim()}</span>
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col items-end space-y-2">
-                                                <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-2xl uppercase tracking-tighter">{p.cat}</span>
-                                                {currentUser && p.sid === currentUser.email && (
-                                                    <button onClick={() => handleDelete(p.id)} className="text-[10px] text-red-400 font-bold hover:text-red-600 transition-colors">刪除</button>
+                        ) : (
+                            allPosts.slice().reverse().map(p => (
+                                <div key={p.id} className="post-card p-8 group">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="flex items-center space-x-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-white border border-lime-100 flex items-center justify-center overflow-hidden shadow-sm group-hover:shadow-md transition-all group-hover:border-emerald-200">
+                                                {p.isAnon ? (
+                                                    <span className="text-slate-300 text-sm font-black italic">匿</span>
+                                                ) : (
+                                                    <span className="text-emerald-500 text-base font-black uppercase">{p.author ? p.author[0] : '？'}</span>
                                                 )}
                                             </div>
+                                            <div>
+                                                <div className="flex items-center space-x-2.5">
+                                                    <h3 className="font-black text-slate-900 text-[15px]">{p.isAnon ? '匿名同學' : p.author}</h3>
+                                                    {!p.isAnon && p.ig && p.ig !== '未設定' && (
+                                                        <a 
+                                                            href={`https://instagram.com/${p.ig.replace('@','')}`} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="text-[10px] font-black text-red-500 hover:text-white hover:bg-red-500 bg-red-50 px-2.5 py-0.5 rounded-full flex items-center space-x-1 transition-all border border-red-100"
+                                                        >
+                                                            <Icon name="instagram" className="w-2.5 h-2.5" />
+                                                            <span>{p.ig.startsWith('@') ? p.ig : `@${p.ig}`}</span>
+                                                        </a>
+                                                    )}
+                                                </div>
+                                                <p className="text-[10px] font-bold text-slate-400 mt-1.5 flex items-center">
+                                                    <span className="w-1 h-1 bg-slate-300 rounded-full mr-2"></span>
+                                                    {p.date}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <p className="text-[15px] text-slate-600 leading-[1.8] whitespace-pre-wrap font-medium">{p.content}</p>
+                                        {currentUser && p.sid === currentUser.email && (
+                                            <button onClick={() => handleDelete(p.id)} className="text-[10px] text-slate-300 font-bold hover:text-red-500 hover:bg-red-50 transition-all px-2.5 py-1.5 rounded-xl border border-transparent hover:border-red-100">刪除</button>
+                                        )}
                                     </div>
-                                ))
-                            )}
-                        </div>
+                                    <div className="relative px-2">
+                                        <div className="absolute -left-4 top-0 w-1.5 h-full bg-gradient-to-bottom from-emerald-500/20 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                        <p className="text-[16px] text-slate-700 leading-relaxed whitespace-pre-wrap font-medium tracking-wide">{p.content}</p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </main>
 
-                    {/* 固定底部的發布按鈕 */}
-                    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 pointer-events-none">
+                    {/* 發布按鈕 - 紅色醒目 */}
+                    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-xl px-10 pointer-events-none z-50">
                         <button 
-                            onClick={() => {
-                                if (!currentUser) { setModalType('login'); setShowModal(true); }
-                                else { setModalType('post'); setShowModal(true); }
-                            }} 
-                            className="w-full bg-slate-900 text-white font-black py-5 rounded-[28px] shadow-2xl active:scale-95 transition-all flex items-center justify-center space-x-3 pointer-events-auto hover:bg-slate-800"
+                            onClick={() => currentUser ? (setModalType('post'), setShowModal(true)) : (setModalType('login'), setShowModal(true))} 
+                            className="w-full bg-red-500 text-white font-black py-5 rounded-[32px] shadow-2xl shadow-red-500/30 active:scale-95 transition-all flex items-center justify-center space-x-4 pointer-events-auto hover:bg-red-600 hover:shadow-red-600/40 ring-4 ring-white/80"
                         >
-                            <Icon name="plus" className="w-6 h-6" />
-                            <span className="text-lg">發布新投稿</span>
+                            <div className="bg-white/20 p-1.5 rounded-xl">
+                                <Icon name="plus" className="w-5 h-5" />
+                            </div>
+                            <span className="text-lg tracking-[0.1em]">我要投稿</span>
                         </button>
                     </div>
 
-                    {/* Modal 彈窗 */}
                     {showModal && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6">
-                            <div className="bg-white w-full max-w-md rounded-[48px] p-10 relative shadow-2xl animate-in zoom-in-95 duration-200">
-                                <button onClick={() => setShowModal(false)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-600 transition-colors">
+                        <div className="fixed inset-0 bg-emerald-950/50 backdrop-blur-md z-50 flex items-center justify-center p-6">
+                            <div className="bg-white w-full max-w-md rounded-[48px] p-10 relative shadow-2xl animate-in zoom-in-90 duration-300">
+                                <button onClick={() => setShowModal(false)} className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all border border-slate-100 hover:border-red-100">
                                     <Icon name="x" className="w-6 h-6" />
                                 </button>
 
                                 {modalType === 'login' && (
-                                    <div className="text-center py-4">
-                                        <div className="bg-blue-600 w-16 h-16 rounded-[22px] flex items-center justify-center mx-auto mb-8 text-white shadow-xl shadow-blue-200">
-                                            <Icon name="google" className="w-8 h-8" />
+                                    <div className="text-center py-6">
+                                        <div className="w-28 h-28 flex items-center justify-center mx-auto mb-10 scale-125">
+                                            <Icon name="mainLogo" />
                                         </div>
-                                        <h2 className="font-black text-2xl mb-3 text-slate-800">登入福山匿名投稿</h2>
-                                        <p className="text-sm text-slate-400 mb-6 font-bold leading-relaxed px-4">你需要先透過 Google 驗證身分，才能發布新的投稿內容。</p>
-                                        
-                                        <div className="google-btn-container">
-                                            <div id="google-signin-btn"></div>
+                                        <h2 className="font-black text-2xl mb-4 text-slate-900 tracking-tight">歡迎來到福山投稿</h2>
+                                        <p className="text-sm text-slate-400 mb-12 font-bold px-8 leading-relaxed">這是一個專屬於福山同學的匿名空間<br/>請使用學校帳號登入</p>
+                                        <div className="flex justify-center">
+                                            <div id="google-signin-btn" className="shadow-xl shadow-slate-200 rounded-full overflow-hidden"></div>
                                         </div>
-                                        
-                                        <p className="mt-8 text-[10px] text-slate-300 font-bold uppercase tracking-widest">Secure Login via Google OAuth</p>
                                     </div>
                                 )}
 
                                 {modalType === 'post' && (
                                     <div>
-                                        <h2 className="font-black text-2xl mb-8 text-slate-800 tracking-tight">新增投稿</h2>
+                                        <div className="flex items-center space-x-4 mb-10">
+                                            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center border border-red-100 shadow-inner">
+                                                <Icon name="plus" className="text-red-500 w-6 h-6" />
+                                            </div>
+                                            <h2 className="font-black text-2xl text-slate-900">撰寫新的投稿</h2>
+                                        </div>
                                         <textarea 
-                                            className="w-full h-48 bg-slate-50 rounded-[32px] p-6 mb-6 outline-none text-base font-medium focus:ring-2 focus:ring-blue-500 border-none resize-none transition-all"
-                                            placeholder="想分享點什麼呢？"
+                                            className="w-full h-52 bg-slate-50 rounded-[32px] p-8 mb-8 outline-none text-[16px] font-medium focus:ring-4 focus:ring-red-50 border-2 border-transparent focus:border-red-500/10 transition-all resize-none shadow-inner text-slate-700 leading-relaxed"
+                                            placeholder="在此分享你的心情、故事或想說的話..."
                                             value={postContent}
                                             onChange={(e) => setPostContent(e.target.value)}
                                         ></textarea>
-                                        <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
-                                            <div className="flex items-center space-x-2">
-                                                {['心情', '尋物', '告白'].map(c => (
-                                                    <button 
-                                                        key={c}
-                                                        onClick={() => setCategory(c)}
-                                                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${category === c ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-slate-100 text-slate-400'}`}
-                                                    >
-                                                        {c}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <label className="flex items-center text-xs font-black text-slate-500 cursor-pointer select-none bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-                                                <input type="checkbox" className="mr-2 accent-blue-600" checked={isAnon} onChange={(e) => setIsAnon(e.target.checked)} /> 
-                                                <span>匿名發布</span>
+                                        <div className="flex items-center justify-between mb-10 px-4">
+                                            <label className="flex items-center text-sm font-black text-slate-500 cursor-pointer group">
+                                                <div className={`w-7 h-7 rounded-xl border-2 mr-3.5 flex items-center justify-center transition-all ${isAnon ? 'bg-red-500 border-red-500 shadow-lg shadow-red-200' : 'border-slate-200 bg-white group-hover:border-red-200'}`}>
+                                                    {isAnon && <div className="w-2.5 h-2.5 bg-white rounded-full"></div>}
+                                                </div>
+                                                <input type="checkbox" className="hidden" checked={isAnon} onChange={(e) => setIsAnon(e.target.checked)} /> 
+                                                <span className={isAnon ? 'text-red-500' : ''}>開啟匿名模式投稿</span>
                                             </label>
                                         </div>
                                         <button 
                                             onClick={handlePost} 
                                             disabled={isSending || !postContent.trim()}
-                                            className="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-base shadow-xl shadow-blue-100 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                                            className="w-full bg-red-500 text-white py-5 rounded-[28px] font-black text-lg shadow-2xl shadow-red-500/20 disabled:opacity-50 transition-all hover:bg-red-600 active:scale-[0.98] ring-offset-4 focus:ring-2 focus:ring-red-500"
                                         >
-                                            {isSending ? '投稿發送中...' : '送出投稿'}
+                                            {isSending ? '正在傳送到雲端...' : '確認發布投稿'}
                                         </button>
                                     </div>
                                 )}
 
                                 {modalType === 'settings' && (
                                     <div>
-                                        <h2 className="font-black text-2xl mb-8 text-slate-800">個人帳號設定</h2>
-                                        <div className="space-y-6">
+                                        <div className="flex items-center space-x-4 mb-10">
+                                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center border border-emerald-100">
+                                                <Icon name="settings" className="text-emerald-500 w-6 h-6" />
+                                            </div>
+                                            <h2 className="font-black text-2xl text-slate-900 tracking-tight">個人帳號設定</h2>
+                                        </div>
+                                        <div className="space-y-10">
                                             <div>
-                                                <label className="text-[10px] font-black text-slate-400 uppercase mb-3 block px-1 tracking-widest">Instagram ID</label>
-                                                <div className="relative">
-                                                    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400">
-                                                        <Icon name="instagram" className="w-5 h-5" />
+                                                <label className="text-[10px] font-black text-slate-400 uppercase mb-4 block px-2 tracking-[0.25em]">你的 Instagram 使用者名稱</label>
+                                                <div className="relative group">
+                                                    <div className="absolute left-7 top-1/2 -translate-y-1/2 text-red-400 transition-transform group-focus-within:scale-110">
+                                                        <Icon name="instagram" className="w-6 h-6" />
                                                     </div>
                                                     <input 
                                                         type="text" 
                                                         id="setting_ig"
                                                         defaultValue={currentUser.ig !== '未設定' ? currentUser.ig : ''}
-                                                        placeholder="例如: your_id"
-                                                        className="w-full bg-slate-50 rounded-[24px] py-4 pl-14 pr-6 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500 border-none shadow-inner transition-all"
+                                                        placeholder="例如: fsjh_life"
+                                                        className="w-full bg-slate-50 rounded-3xl py-6 pl-16 pr-8 text-base font-black outline-none border-2 border-transparent focus:border-red-500/10 focus:bg-white transition-all shadow-inner"
                                                     />
                                                 </div>
-                                                <p className="text-[10px] text-slate-400 mt-3 px-1 font-bold italic">設定後投稿將顯示 IG 連結，留空則不顯示</p>
+                                                <div className="mt-4 px-3 flex items-start space-x-2">
+                                                    <div className="w-1 h-1 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0"></div>
+                                                    <p className="text-[11px] text-slate-400 font-bold leading-relaxed">填寫後，當你選擇「非匿名」投稿時，其他同學將能看到你的 IG 連結。</p>
+                                                </div>
                                             </div>
                                             <button 
                                                 onClick={() => saveIG(document.getElementById('setting_ig').value)}
-                                                className="w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-base shadow-xl mt-4 transition-all active:scale-95"
+                                                className="w-full bg-slate-900 text-white py-5 rounded-[28px] font-black text-lg transition-all hover:bg-black active:scale-[0.98] shadow-xl shadow-slate-200"
                                             >
-                                                儲存變更
+                                                儲存我的設定
                                             </button>
                                         </div>
                                     </div>
@@ -438,8 +460,7 @@
             );
         };
 
-        const rootElement = document.getElementById('root');
-        const root = ReactDOM.createRoot(rootElement);
+        const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>
