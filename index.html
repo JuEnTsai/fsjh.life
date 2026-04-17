@@ -336,7 +336,12 @@
             try {
                 const response = await fetch(`${GAS_URL}?action=getPosts`);
                 const posts = await response.json();
-                renderPosts(posts);
+                
+                // 排序邏輯：將抓取到的投稿進行反轉，讓最新的排在最前面
+                // (假設 GAS 回傳的是照時間順序排列的陣列)
+                const sortedPosts = posts.reverse();
+                
+                renderPosts(sortedPosts);
                 setSyncStatus(true);
             } catch (error) {
                 console.error("抓取失敗:", error);
