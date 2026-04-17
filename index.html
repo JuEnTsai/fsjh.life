@@ -3,465 +3,461 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>福山匿名投稿</title>
-    <!-- 載入必要套件 -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>福山匿名投稿系統</title>
+    <!-- Google Login API -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
         
-        body { 
-            font-family: 'Noto Sans TC', sans-serif; 
-            background-color: #f7fee7; /* 溫暖的淡綠色背景 */
-            /* 背景裝飾：更細緻的格紋感 */
-            background-image: 
-                radial-gradient(#d9f99d 0.8px, transparent 0.8px),
-                linear-gradient(to right, #f1f8e4 1px, transparent 1px),
-                linear-gradient(to bottom, #f1f8e4 1px, transparent 1px);
-            background-size: 24px 24px, 24px 24px, 24px 24px;
+        :root {
+            --fushan-green: #00a67e;
+            --fushan-light-green: #f0f9f4; 
+            --fushan-soft-red: #ff9999;
+            --bg-main: #f2fdf7; 
         }
-        
-        .avatar-ring {
-            position: relative;
-            background: #ffffff; 
-            border-radius: 16px; 
-            width: 44px;
-            height: 44px;
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-main);
+            margin: 0;
+            padding: 0;
+            color: #1e293b;
+        }
+
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            background-image: radial-gradient(#d1fae5 1.5px, transparent 1.5px);
+            background-size: 30px 30px;
+            z-index: -1;
+            opacity: 0.6;
+        }
+
+        .header-card {
+            background: white;
+            border-radius: 0 0 2.5rem 2.5rem;
+            padding: 1.25rem 2rem;
+            box-shadow: 0 4px 20px rgba(0, 166, 126, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .post-card {
+            background: white;
+            border-radius: 2rem;
+            padding: 1.75rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 166, 126, 0.05);
+            transition: transform 0.3s ease;
+        }
+        .post-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 50, 40, 0.2);
+            backdrop-filter: blur(8px);
+            z-index: 500;
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0;
-            cursor: pointer;
-            border: 1.5px solid #ecf3e0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
         }
 
-        .avatar-img-wrapper {
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 450px;
+            border-radius: 3rem;
+            padding: 2.5rem;
             position: relative;
-            border-radius: 12px; 
-            width: 36px;
-            height: 36px;
-            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            transform: scale(0.9);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .custom-textarea {
+            width: 100%;
+            background: #f8fafc;
+            border: 1px solid #f1f5f9;
+            border-radius: 2rem;
+            padding: 1.5rem;
+            min-height: 180px;
+            outline: none;
+            resize: none;
+            font-size: 1rem;
+            color: #475569;
+        }
+
+        .btn-primary {
+            background: var(--fushan-soft-red);
+            color: white;
+            width: 100%;
+            padding: 1.25rem;
+            border-radius: 2rem;
+            font-weight: 900;
+            font-size: 1.1rem;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 8px 15px rgba(255, 153, 153, 0.3);
+        }
+        .btn-primary:active {
+            transform: scale(0.96);
         }
 
-        .post-card { 
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-            border-radius: 28px; 
-            border: 1px solid rgba(255, 255, 255, 0.7); 
-            background-color: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            box-shadow: 0 10px 30px -12px rgba(101, 163, 13, 0.08);
+        .fab {
+            position: fixed;
+            bottom: 2.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            width: 85%;
+            max-width: 400px;
+            padding: 1.25rem 2rem;
+            border-radius: 2.5rem;
+            font-weight: 900;
+            font-size: 1.2rem;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        
-        .post-card:hover { 
-            transform: translateY(-4px) scale(1.01);
-            border-color: #10b981; 
-            box-shadow: 0 20px 40px -15px rgba(16, 185, 129, 0.15);
+        .fab:hover {
+            transform: translateX(-50%) translateY(-5px);
+            background: #0f172a;
         }
 
-        /* 呼吸燈效果 */
-        .status-pulse {
-            position: relative;
-        }
-        .status-pulse::after {
-            content: '';
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: #10b981;
+        .loader {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #FFF;
+            border-bottom-color: transparent;
             border-radius: 50%;
-            left: -12px;
-            top: 50%;
-            transform: translateY(-50%);
-            box-shadow: 0 0 8px #10b981;
-            animation: pulse 2s infinite;
+            display: inline-block;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
-        @keyframes pulse {
-            0% { opacity: 0.3; transform: translateY(-50%) scale(0.8); }
-            50% { opacity: 1; transform: translateY(-50%) scale(1.2); }
-            100% { opacity: 0.3; transform: translateY(-50%) scale(0.8); }
-        }
-
-        .forum-logo-custom {
+        /* 使用者頭像樣式 */
+        .user-avatar-btn {
             width: 48px;
             height: 48px;
+            background: #f8fafc;
+            border: 1px solid #f1f5f9;
+            border-radius: 1rem;
             display: flex;
             align-items: center;
             justify-content: center;
+            color: #cbd5e1;
+            overflow: hidden;
+            transition: all 0.2s;
         }
-
-        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        .user-avatar-btn:hover {
+            background: #f1f5f9;
+            color: #94a3b8;
+        }
+        .user-avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
     </style>
 </head>
-<body class="pb-32">
-    <div id="root"></div>
+<body>
+    <div class="grid-bg"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+    <!-- 登入提示彈窗 -->
+    <div id="login-modal" class="modal-overlay">
+        <div class="modal-content text-center">
+            <div class="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mx-auto mb-6">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            </div>
+            <h2 class="text-2xl font-black text-slate-800 mb-2">需要登入</h2>
+            <p class="text-slate-500 font-medium mb-8">為了維護社群品質，投稿前請先使用 Google 帳號登入驗證。</p>
+            <div class="flex justify-center" id="google-login-btn-modal"></div>
+            <button onclick="toggleModal('login-modal', false)" class="mt-6 text-slate-400 font-bold text-sm hover:text-slate-600 transition-colors">先看看就好</button>
+        </div>
+    </div>
 
-        const Icon = ({ name, className = "w-4 h-4" }) => {
-            const icons = {
-                plus: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
-                logout: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>,
-                settings: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
-                user: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-                x: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
-                refresh: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>,
-                instagram: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>,
-                mainLogo: (
-                    <div className="forum-logo-custom">
-                        <svg viewBox="0 0 100 100" className="w-12 h-12 drop-shadow-md">
-                            <defs>
-                                <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" stopColor="#10b981" />
-                                    <stop offset="100%" stopColor="#059669" />
-                                </linearGradient>
-                            </defs>
-                            <circle cx="50" cy="50" r="46" fill="url(#logoGrad)" />
-                            <path d="M22 38 C22 28 28 22 48 22 C68 22 78 28 78 38 C78 55 78 62 78 68 C78 74 72 78 62 78 L55 78 L45 88 L45 78 C32 78 22 74 22 65 Z" fill="white" fillOpacity="0.9" />
-                            <text x="50" y="58" fontFamily="system-ui, sans-serif" fontSize="15" fontWeight="900" fill="#065f46" textAnchor="middle" letterSpacing="-0.5">FSJH</text>
-                        </svg>
-                    </div>
-                )
-            };
-            return icons[name] || null;
-        };
+    <!-- 投稿彈窗 -->
+    <div id="post-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button onclick="toggleModal('post-modal', false)" class="absolute top-6 right-6 w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 hover:bg-slate-100 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
 
-        const API_URL = "https://script.google.com/macros/s/AKfycbxNIWjUyOdZM3vvHR9uMdfADYwPnsRJvntQTtoZlBmWj_E_w2L6v8hH_sV4urAYPe-ylw/exec";
-        const GOOGLE_CLIENT_ID = "511878323230-0uvd7colr8df751ujpjv9e7trmvp8amm.apps.googleusercontent.com";
-
-        const App = () => {
-            const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('fushan_user')) || null);
-            const [allPosts, setAllPosts] = useState([]);
-            const [isLoading, setIsLoading] = useState(true);
-            const [status, setStatus] = useState('已連線');
-            const [showModal, setShowModal] = useState(false);
-            const [modalType, setModalType] = useState('login'); 
-            const [showUserMenu, setShowUserMenu] = useState(false);
-
-            const [postContent, setPostContent] = useState('');
-            const [isAnon, setIsAnon] = useState(false);
-            const [isSending, setIsSending] = useState(false);
-
-            useEffect(() => {
-                loadFeed();
-                window.handleCredentialResponse = (response) => {
-                    const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-                    const savedIg = localStorage.getItem(`fushan_ig_${payload.email}`) || '未設定';
-                    const user = { 
-                        name: payload.name, 
-                        email: payload.email, 
-                        picture: payload.picture,
-                        ig: savedIg
-                    };
-                    setCurrentUser(user);
-                    localStorage.setItem('fushan_user', JSON.stringify(user));
-                    setShowModal(false);
-                };
-            }, []);
-
-            useEffect(() => {
-                if (showModal && modalType === 'login') {
-                    const interval = setInterval(() => {
-                        if (window.google) {
-                            window.google.accounts.id.initialize({
-                                client_id: GOOGLE_CLIENT_ID,
-                                callback: window.handleCredentialResponse
-                            });
-                            const btnElem = document.getElementById('google-signin-btn');
-                            if (btnElem) {
-                                window.google.accounts.id.renderButton(btnElem, {
-                                    type: "standard",
-                                    shape: "pill",
-                                    theme: "filled_black",
-                                    text: "signin_with",
-                                    size: "large",
-                                    width: 280
-                                });
-                                clearInterval(interval);
-                            }
-                        }
-                    }, 100);
-                    return () => clearInterval(interval);
-                }
-            }, [showModal, modalType]);
-
-            const loadFeed = async () => {
-                setStatus('同步中');
-                try {
-                    const res = await fetch(API_URL);
-                    const data = await res.json();
-                    setAllPosts(Array.isArray(data) ? data : []);
-                    setIsLoading(false);
-                    setStatus('已更新');
-                } catch (e) {
-                    setStatus('連線異常');
-                    setIsLoading(false);
-                }
-            };
-
-            const handlePost = async () => {
-                if (!postContent.trim()) return;
-                setIsSending(true);
-                const data = {
-                    action: "add",
-                    id: Date.now().toString(),
-                    author: currentUser.name,
-                    sid: currentUser.email,
-                    ig: currentUser.ig || "未設定",
-                    cat: "通用",
-                    content: postContent,
-                    isAnon: isAnon,
-                    date: new Date().toLocaleString('zh-TW', { hour12: false })
-                };
-                try {
-                    await fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
-                    setPostContent('');
-                    setShowModal(false);
-                    setIsSending(false);
-                    setTimeout(loadFeed, 500);
-                } catch (e) {
-                    setIsSending(false);
-                }
-            };
-
-            const handleDelete = async (postId) => {
-                if (!confirm("確定要刪除這則投稿嗎？")) return;
-                setStatus('刪除中');
-                try {
-                    await fetch(API_URL, { 
-                        method: 'POST', 
-                        mode: 'no-cors', 
-                        body: JSON.stringify({ action: "delete", id: postId, userEmail: currentUser.email }) 
-                    });
-                    setTimeout(loadFeed, 1000);
-                } catch (e) { }
-            };
-
-            const saveIG = (newIg) => {
-                const updatedUser = { ...currentUser, ig: newIg };
-                setCurrentUser(updatedUser);
-                localStorage.setItem('fushan_user', JSON.stringify(updatedUser));
-                localStorage.setItem(`fushan_ig_${currentUser.email}`, newIg);
-                setShowModal(false);
-            };
-
-            return (
-                <div className="min-h-screen pb-24 antialiased text-slate-800">
-                    <nav className="sticky top-0 bg-white/70 backdrop-blur-xl border-b border-lime-200/50 px-6 py-4 z-40">
-                        <div className="max-w-xl mx-auto flex justify-between items-center">
-                            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
-                                <Icon name="mainLogo" />
-                                <div className="flex flex-col">
-                                    <h1 className="font-black text-xl text-slate-900 tracking-tighter leading-none">福山匿名投稿</h1>
-                                    <div className="flex items-center mt-2 ml-4">
-                                        <span className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] leading-none status-pulse">{status}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="relative">
-                                <button onClick={() => currentUser ? setShowUserMenu(!showUserMenu) : (setModalType('login'), setShowModal(true))} className="avatar-ring hover:border-emerald-300 hover:scale-105 transition-all active:scale-95 shadow-sm">
-                                    <div className="avatar-img-wrapper" style={{ backgroundColor: currentUser ? 'transparent' : '#f8fafc' }}>
-                                        {currentUser ? (
-                                            <img src={currentUser.picture} alt="profile" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <Icon name="user" className="w-5 h-5 text-slate-300" />
-                                        )}
-                                    </div>
-                                </button>
-                                {currentUser && showUserMenu && (
-                                    <div className="absolute right-0 mt-3 w-60 bg-white rounded-[32px] shadow-2xl shadow-emerald-900/15 border border-emerald-50 py-2 z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
-                                        <div className="px-6 py-5 border-b border-slate-50 mb-1 bg-emerald-50/30">
-                                            <p className="text-sm font-black text-slate-900 truncate">{currentUser.name}</p>
-                                            <p className="text-[11px] font-bold text-slate-400 truncate mt-0.5">{currentUser.email}</p>
-                                        </div>
-                                        <button onClick={() => { setModalType('settings'); setShowModal(true); setShowUserMenu(false); }} className="w-full flex items-center space-x-3 px-6 py-3.5 text-sm text-slate-600 hover:bg-emerald-50 transition-colors font-bold">
-                                            <Icon name="settings" className="w-4 h-4 text-emerald-500" /> <span>個人帳號設定</span>
-                                        </button>
-                                        <button onClick={() => { localStorage.removeItem('fushan_user'); setCurrentUser(null); setShowUserMenu(false); }} className="w-full flex items-center space-x-3 px-6 py-3.5 text-sm text-red-500 hover:bg-red-50 transition-colors font-bold border-t border-slate-50 mt-1">
-                                            <Icon name="logout" className="w-4 h-4" /> <span>登出系統</span>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </nav>
-
-                    <main className="max-w-xl mx-auto p-6 space-y-8">
-                        {isLoading ? (
-                            <div className="text-center py-32">
-                                <div className="inline-block relative w-12 h-12">
-                                    <div className="absolute inset-0 border-4 border-emerald-100 rounded-full"></div>
-                                    <div className="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
-                                </div>
-                                <p className="text-xs font-black text-emerald-600/40 mt-6 tracking-widest">正在從雲端同步投稿內容...</p>
-                            </div>
-                        ) : (
-                            allPosts.slice().reverse().map(p => (
-                                <div key={p.id} className="post-card p-8 group">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div className="flex items-center space-x-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-white border border-lime-100 flex items-center justify-center overflow-hidden shadow-sm group-hover:shadow-md transition-all group-hover:border-emerald-200">
-                                                {p.isAnon ? (
-                                                    <span className="text-slate-300 text-sm font-black italic">匿</span>
-                                                ) : (
-                                                    <span className="text-emerald-500 text-base font-black uppercase">{p.author ? p.author[0] : '？'}</span>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center space-x-2.5">
-                                                    <h3 className="font-black text-slate-900 text-[15px]">{p.isAnon ? '匿名同學' : p.author}</h3>
-                                                    {!p.isAnon && p.ig && p.ig !== '未設定' && (
-                                                        <a 
-                                                            href={`https://instagram.com/${p.ig.replace('@','')}`} 
-                                                            target="_blank" 
-                                                            rel="noopener noreferrer"
-                                                            className="text-[10px] font-black text-red-500 hover:text-white hover:bg-red-500 bg-red-50 px-2.5 py-0.5 rounded-full flex items-center space-x-1 transition-all border border-red-100"
-                                                        >
-                                                            <Icon name="instagram" className="w-2.5 h-2.5" />
-                                                            <span>{p.ig.startsWith('@') ? p.ig : `@${p.ig}`}</span>
-                                                        </a>
-                                                    )}
-                                                </div>
-                                                <p className="text-[10px] font-bold text-slate-400 mt-1.5 flex items-center">
-                                                    <span className="w-1 h-1 bg-slate-300 rounded-full mr-2"></span>
-                                                    {p.date}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        {currentUser && p.sid === currentUser.email && (
-                                            <button onClick={() => handleDelete(p.id)} className="text-[10px] text-slate-300 font-bold hover:text-red-500 hover:bg-red-50 transition-all px-2.5 py-1.5 rounded-xl border border-transparent hover:border-red-100">刪除</button>
-                                        )}
-                                    </div>
-                                    <div className="relative px-2">
-                                        <div className="absolute -left-4 top-0 w-1.5 h-full bg-gradient-to-bottom from-emerald-500/20 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                        <p className="text-[16px] text-slate-700 leading-relaxed whitespace-pre-wrap font-medium tracking-wide">{p.content}</p>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </main>
-
-                    {/* 發布按鈕 - 紅色醒目 */}
-                    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-xl px-10 pointer-events-none z-50">
-                        <button 
-                            onClick={() => currentUser ? (setModalType('post'), setShowModal(true)) : (setModalType('login'), setShowModal(true))} 
-                            className="w-full bg-red-500 text-white font-black py-5 rounded-[32px] shadow-2xl shadow-red-500/30 active:scale-95 transition-all flex items-center justify-center space-x-4 pointer-events-auto hover:bg-red-600 hover:shadow-red-600/40 ring-4 ring-white/80"
-                        >
-                            <div className="bg-white/20 p-1.5 rounded-xl">
-                                <Icon name="plus" className="w-5 h-5" />
-                            </div>
-                            <span className="text-lg tracking-[0.1em]">我要投稿</span>
-                        </button>
-                    </div>
-
-                    {showModal && (
-                        <div className="fixed inset-0 bg-emerald-950/50 backdrop-blur-md z-50 flex items-center justify-center p-6">
-                            <div className="bg-white w-full max-w-md rounded-[48px] p-10 relative shadow-2xl animate-in zoom-in-90 duration-300">
-                                <button onClick={() => setShowModal(false)} className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all border border-slate-100 hover:border-red-100">
-                                    <Icon name="x" className="w-6 h-6" />
-                                </button>
-
-                                {modalType === 'login' && (
-                                    <div className="text-center py-6">
-                                        <div className="w-28 h-28 flex items-center justify-center mx-auto mb-10 scale-125">
-                                            <Icon name="mainLogo" />
-                                        </div>
-                                        <h2 className="font-black text-2xl mb-4 text-slate-900 tracking-tight">歡迎來到福山投稿</h2>
-                                        <p className="text-sm text-slate-400 mb-12 font-bold px-8 leading-relaxed">這是一個專屬於福山同學的匿名空間<br/>請使用學校帳號登入</p>
-                                        <div className="flex justify-center">
-                                            <div id="google-signin-btn" className="shadow-xl shadow-slate-200 rounded-full overflow-hidden"></div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {modalType === 'post' && (
-                                    <div>
-                                        <div className="flex items-center space-x-4 mb-10">
-                                            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center border border-red-100 shadow-inner">
-                                                <Icon name="plus" className="text-red-500 w-6 h-6" />
-                                            </div>
-                                            <h2 className="font-black text-2xl text-slate-900">撰寫新的投稿</h2>
-                                        </div>
-                                        <textarea 
-                                            className="w-full h-52 bg-slate-50 rounded-[32px] p-8 mb-8 outline-none text-[16px] font-medium focus:ring-4 focus:ring-red-50 border-2 border-transparent focus:border-red-500/10 transition-all resize-none shadow-inner text-slate-700 leading-relaxed"
-                                            placeholder="在此分享你的心情、故事或想說的話..."
-                                            value={postContent}
-                                            onChange={(e) => setPostContent(e.target.value)}
-                                        ></textarea>
-                                        <div className="flex items-center justify-between mb-10 px-4">
-                                            <label className="flex items-center text-sm font-black text-slate-500 cursor-pointer group">
-                                                <div className={`w-7 h-7 rounded-xl border-2 mr-3.5 flex items-center justify-center transition-all ${isAnon ? 'bg-red-500 border-red-500 shadow-lg shadow-red-200' : 'border-slate-200 bg-white group-hover:border-red-200'}`}>
-                                                    {isAnon && <div className="w-2.5 h-2.5 bg-white rounded-full"></div>}
-                                                </div>
-                                                <input type="checkbox" className="hidden" checked={isAnon} onChange={(e) => setIsAnon(e.target.checked)} /> 
-                                                <span className={isAnon ? 'text-red-500' : ''}>開啟匿名模式投稿</span>
-                                            </label>
-                                        </div>
-                                        <button 
-                                            onClick={handlePost} 
-                                            disabled={isSending || !postContent.trim()}
-                                            className="w-full bg-red-500 text-white py-5 rounded-[28px] font-black text-lg shadow-2xl shadow-red-500/20 disabled:opacity-50 transition-all hover:bg-red-600 active:scale-[0.98] ring-offset-4 focus:ring-2 focus:ring-red-500"
-                                        >
-                                            {isSending ? '正在傳送到雲端...' : '確認發布投稿'}
-                                        </button>
-                                    </div>
-                                )}
-
-                                {modalType === 'settings' && (
-                                    <div>
-                                        <div className="flex items-center space-x-4 mb-10">
-                                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center border border-emerald-100">
-                                                <Icon name="settings" className="text-emerald-500 w-6 h-6" />
-                                            </div>
-                                            <h2 className="font-black text-2xl text-slate-900 tracking-tight">個人帳號設定</h2>
-                                        </div>
-                                        <div className="space-y-10">
-                                            <div>
-                                                <label className="text-[10px] font-black text-slate-400 uppercase mb-4 block px-2 tracking-[0.25em]">你的 Instagram 使用者名稱</label>
-                                                <div className="relative group">
-                                                    <div className="absolute left-7 top-1/2 -translate-y-1/2 text-red-400 transition-transform group-focus-within:scale-110">
-                                                        <Icon name="instagram" className="w-6 h-6" />
-                                                    </div>
-                                                    <input 
-                                                        type="text" 
-                                                        id="setting_ig"
-                                                        defaultValue={currentUser.ig !== '未設定' ? currentUser.ig : ''}
-                                                        placeholder="例如: fsjh_life"
-                                                        className="w-full bg-slate-50 rounded-3xl py-6 pl-16 pr-8 text-base font-black outline-none border-2 border-transparent focus:border-red-500/10 focus:bg-white transition-all shadow-inner"
-                                                    />
-                                                </div>
-                                                <div className="mt-4 px-3 flex items-start space-x-2">
-                                                    <div className="w-1 h-1 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0"></div>
-                                                    <p className="text-[11px] text-slate-400 font-bold leading-relaxed">填寫後，當你選擇「非匿名」投稿時，其他同學將能看到你的 IG 連結。</p>
-                                                </div>
-                                            </div>
-                                            <button 
-                                                onClick={() => saveIG(document.getElementById('setting_ig').value)}
-                                                className="w-full bg-slate-900 text-white py-5 rounded-[28px] font-black text-lg transition-all hover:bg-black active:scale-[0.98] shadow-xl shadow-slate-200"
-                                            >
-                                                儲存我的設定
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
+            <div class="flex items-center space-x-4 mb-8">
+                <div class="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6v12m6-6H6"></path></svg>
                 </div>
-            );
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight">撰寫新的投稿</h2>
+            </div>
+
+            <div class="mb-6">
+                <textarea id="post-content" class="custom-textarea" placeholder="在此分享你的心情、故事或想說的話..."></textarea>
+            </div>
+
+            <div class="flex items-center space-x-3 mb-8 px-2">
+                <input type="checkbox" id="anon-toggle" checked class="w-6 h-6 rounded-full border-slate-200 text-slate-800 focus:ring-0 cursor-pointer">
+                <label for="anon-toggle" class="text-slate-500 font-bold cursor-pointer">開啟匿名模式投稿</label>
+            </div>
+
+            <button id="submit-btn" onclick="submitPost()" class="btn-primary">
+                <span id="btn-text">確認發布投稿</span>
+            </button>
+        </div>
+    </div>
+
+    <header class="pt-6 px-4 mb-10">
+        <div class="header-card">
+            <div class="flex items-center space-x-4">
+                <div class="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white font-black text-xs shadow-lg shadow-emerald-100">FSJH</div>
+                <div>
+                    <h1 class="text-xl font-black text-slate-800 tracking-tight">福山匿名投稿</h1>
+                    <div class="flex items-center">
+                        <span id="sync-dot" class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                        <span id="sync-text" class="text-green-500 text-xs font-bold">已同步</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 頭像與登入按鈕區塊 -->
+            <div id="auth-section">
+                <button onclick="checkAuthAndOpenModal()" class="user-avatar-btn" id="user-display">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                </button>
+                <div id="g_id_onload"
+                     data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+                     data-callback="handleCredentialResponse"
+                     data-auto_prompt="false">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-2xl mx-auto px-6 pb-40">
+        <div id="posts-container" class="space-y-6">
+            <div class="flex flex-col items-center justify-center py-24 opacity-30">
+                <div class="loader !border-emerald-400 !border-b-transparent mb-4"></div>
+                <p class="font-black text-xs uppercase tracking-widest text-emerald-800">正在同步校園心情...</p>
+            </div>
+        </div>
+    </main>
+
+    <button onclick="checkAuthAndOpenModal()" class="fab">
+        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
+        </svg>
+        <span>新建投稿</span>
+    </button>
+
+    <div id="toast" class="fixed bottom-32 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur text-white px-8 py-4 rounded-3xl text-sm font-bold opacity-0 transition-all pointer-events-none z-[1000] shadow-2xl"></div>
+
+    <script>
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxNIWjUyOdZM3vvHR9uMdfADYwPnsRJvntQTtoZlBmWj_E_w2L6v8hH_sV4urAYPe-ylw/exec";
+        let currentUser = null;
+
+        window.onload = () => {
+            fetchPosts();
         };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        // --- Google 驗證邏輯 ---
+        function handleCredentialResponse(response) {
+            const base64Url = response.credential.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+
+            currentUser = JSON.parse(jsonPayload);
+            updateAuthUI();
+            toggleModal('login-modal', false);
+            showToast(`歡迎回來，${currentUser.name}！`);
+        }
+
+        function updateAuthUI() {
+            const userDisplay = document.getElementById('user-display');
+            if (currentUser && userDisplay) {
+                userDisplay.innerHTML = `<img src="${currentUser.picture}" class="user-avatar-img" title="點擊登出">`;
+                userDisplay.onclick = confirmLogout;
+            }
+        }
+
+        function confirmLogout() {
+            if(confirm("確定要登出嗎？")) {
+                currentUser = null;
+                location.reload();
+            }
+        }
+
+        function checkAuthAndOpenModal() {
+            if (!currentUser) {
+                toggleModal('login-modal', true);
+                setTimeout(() => {
+                    google.accounts.id.renderButton(
+                        document.getElementById("google-login-btn-modal"),
+                        { theme: "outline", size: "large", text: "signin_with" }
+                    );
+                }, 100);
+                return;
+            }
+            toggleModal('post-modal', true);
+        }
+
+        // --- 投稿與資料抓取 ---
+        async function fetchPosts() {
+            setSyncStatus(false);
+            try {
+                const response = await fetch(`${GAS_URL}?action=getPosts`);
+                const posts = await response.json();
+                renderPosts(posts);
+                setSyncStatus(true);
+            } catch (error) {
+                console.error("抓取失敗:", error);
+                document.getElementById('posts-container').innerHTML = `<div class="text-center py-20"><p class="text-slate-400 font-bold">暫時無法獲取內容</p></div>`;
+            }
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr || dateStr === "剛剛") return "剛剛";
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return dateStr;
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const hh = String(date.getHours()).padStart(2, '0');
+            const mm = String(date.getMinutes()).padStart(2, '0');
+            const ss = String(date.getSeconds()).padStart(2, '0');
+            return `${y}/${m}/${d} ${hh}:${mm}:${ss}`;
+        }
+
+        function renderPosts(posts) {
+            const container = document.getElementById('posts-container');
+            if (!posts || posts.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-400 font-bold py-20">目前還沒有人投稿喔</p>`;
+                return;
+            }
+
+            container.innerHTML = posts.map(post => {
+                const isAnon = post.isAnon === true || post.isAnon === "true";
+                const displayDate = formatDate(post.date);
+                const avatar = isAnon 
+                    ? `<div class="w-10 h-10 rounded-xl bg-slate-600 flex items-center justify-center text-white"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"></path></svg></div>`
+                    : `<div class="w-10 h-10 rounded-xl overflow-hidden border border-slate-100"><img src="${post.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(post.author)}" class="w-full h-full object-cover"></div>`;
+
+                return `
+                    <div class="post-card">
+                        <div class="flex items-center space-x-3 mb-4">
+                            ${avatar}
+                            <div>
+                                <div class="font-black text-slate-800 text-sm">${isAnon ? '匿名同學' : post.author}</div>
+                                <div class="text-[9px] text-slate-400 font-black tracking-widest">${displayDate}</div>
+                            </div>
+                        </div>
+                        <p class="text-slate-600 font-medium leading-relaxed">${post.content}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function submitPost() {
+            if (!currentUser) {
+                showToast("請先登入後再發布！");
+                return;
+            }
+
+            const content = document.getElementById('post-content').value.trim();
+            const isAnon = document.getElementById('anon-toggle').checked;
+            
+            if (!content) {
+                showToast("請輸入點內容吧！");
+                return;
+            }
+
+            const btn = document.getElementById('submit-btn');
+            const btnText = document.getElementById('btn-text');
+            btn.disabled = true;
+            btnText.innerHTML = `<span class="loader"></span>`;
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('action', 'addPost');
+                formData.append('content', content);
+                formData.append('isAnon', isAnon);
+                formData.append('author', isAnon ? "匿名同學" : currentUser.name);
+                formData.append('avatar', isAnon ? "" : currentUser.picture);
+
+                await fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: formData
+                });
+
+                showToast("發布成功！✨");
+                document.getElementById('post-content').value = "";
+                toggleModal('post-modal', false);
+                setTimeout(fetchPosts, 1500);
+            } catch (error) {
+                showToast("發布失敗，請稍後再試。");
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = "確認發布投稿";
+            }
+        }
+
+        // --- UI 控制 ---
+        function toggleModal(id, show) {
+            document.getElementById(id).classList.toggle('active', show);
+        }
+
+        function setSyncStatus(isSynced) {
+            const dot = document.getElementById('sync-dot');
+            const text = document.getElementById('sync-text');
+            if (isSynced) {
+                dot.className = "w-2 h-2 bg-green-400 rounded-full mr-2";
+                text.innerText = "已同步";
+            } else {
+                dot.className = "w-2 h-2 bg-orange-400 rounded-full mr-2 animate-pulse";
+                text.innerText = "同步中...";
+            }
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.opacity = "1";
+            t.style.transform = "translate(-50%, -20px)";
+            setTimeout(() => {
+                t.style.opacity = "0";
+                t.style.transform = "translate(-50%, 0px)";
+            }, 3000);
+        }
     </script>
 </body>
 </html>
